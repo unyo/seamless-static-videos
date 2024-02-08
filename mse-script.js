@@ -18,27 +18,29 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     async function loadVideo(index) {
+        if (videoElement.duration) videoElement.pause()
         const content = await fetch(videoUrls[index]).then(response => response.arrayBuffer());
         appendBuffer(sourceBuffer, content);
     }
 
     function appendBuffer(sourceBuffer, content) {
         sourceBuffer.appendBuffer(content);
-        sourceBuffer.addEventListener('updateend', onVideoAppended, { once: true });
+        sourceBuffer.addEventListener('updateend', onVideoAppended);
     }
 
     function onVideoAppended() {
-        if (videoIndex === 0) { // Only for the first video
-            videoElement.addEventListener('timeupdate', onTimeUpdate);
-        } else if (videoIndex === videoUrls.length - 1) { // After the last video is appended
-            videoElement.currentTime = 0; // Reset playback to the beginning
-        }
+        console.log('onVideoAppended')
+        videoElement.currentTime = 0; // Reset playback to the beginning
+        videoElement.addEventListener('timeupdate', onTimeUpdate);
+        videoElement.play()
     }
 
     function onTimeUpdate() {
         const nearEnd = videoElement.duration - videoElement.currentTime <= 1; // 1 second before the video ends
         if (nearEnd && videoIndex < videoUrls.length - 1) {
+            videoElement.pause();
             videoElement.removeEventListener('timeupdate', onTimeUpdate);
+            //videoElement.currentTime = 0;
             videoIndex++;
             loadVideo(videoIndex);
         }
