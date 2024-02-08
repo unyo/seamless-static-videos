@@ -5,49 +5,42 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const videoUrls = [
         '1.webm',  // Replace with the actual URL of your first video
-        '2.webm'  // Replace with the actual URL of your second video
+        '2.webm',  // Replace with the actual URL of your second video
+        '3.webm'
     ];
 
     let sourceBuffer;
-    let nextVideoContent = null; // To store the ArrayBuffer of the next video
     let videoIndex = 0; // Index to keep track of the current video being processed
-    const N = 10; // Number of seconds before the end to start loading the next video
 
     mediaSource.addEventListener('sourceopen', async function() {
         sourceBuffer = mediaSource.addSourceBuffer('video/webm; codecs="vp8, vorbis"');
-        loadAndAppendVideo(videoIndex);
+        await loadVideo(videoIndex);
     });
 
-    async function loadAndAppendVideo(index) {
+    async function loadVideo(index) {
         const content = await fetch(videoUrls[index]).then(response => response.arrayBuffer());
         appendBuffer(sourceBuffer, content);
-        videoIndex++;
     }
 
     function appendBuffer(sourceBuffer, content) {
-        sourceBuffer.addEventListener('updateend', onVideoAppended, { once: true });
         sourceBuffer.appendBuffer(content);
+        sourceBuffer.addEventListener('updateend', onVideoAppended, { once: true });
     }
 
     function onVideoAppended() {
-        if (videoIndex < videoUrls.length) {
+        if (videoIndex === 0) { // Only for the first video
             videoElement.addEventListener('timeupdate', onTimeUpdate);
-            videoElement.addEventListener('ended', onVideoEnded, { once: true });
+        } else if (videoIndex === videoUrls.length - 1) { // After the last video is appended
+            videoElement.currentTime = 0; // Reset playback to the beginning
         }
     }
 
-    async function onTimeUpdate() {
-        const remainingTime = videoElement.duration - videoElement.currentTime;
-        if (remainingTime <= N && !nextVideoContent && videoIndex < videoUrls.length) {
-            videoElement.removeEventListener('timeupdate', onTimeUpdate); // Prevent multiple loads
-            nextVideoContent = await fetch(videoUrls[videoIndex]).then(response => response.arrayBuffer());
-        }
-    }
-
-    function onVideoEnded() {
-        if (nextVideoContent) {
-            appendBuffer(sourceBuffer, nextVideoContent);
-            nextVideoContent = null; // Reset for the next cycle
+    function onTimeUpdate() {
+        const nearEnd = videoElement.duration - videoElement.currentTime <= 1; // 1 second before the video ends
+        if (nearEnd && videoIndex < videoUrls.length - 1) {
+            videoElement.removeEventListener('timeupdate', onTimeUpdate);
+            videoIndex++;
+            loadVideo(videoIndex);
         }
     }
 });
